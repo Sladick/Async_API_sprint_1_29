@@ -28,8 +28,8 @@ class PostgresProdSettings(PostgresBaseSettingsSettings):
 
 class RedisBaseSettings(BaseSettings):
 
-    redis_host: str
-    redis_port: int
+    host: str = Field(env="redis_host")
+    port: int = Field(env="redis_port")
 
     class Config:
         env_file = ".env"
@@ -48,7 +48,7 @@ class RedisProdSettings(RedisBaseSettings):
 
 class ESBaseSettings(BaseSettings):
 
-    es_host: str
+    host: str = Field(env="es_host")
 
     class Config:
         env_file = ".env"

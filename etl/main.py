@@ -38,7 +38,7 @@ def start_loads_pg_es():
     подключения или отсутствия новых данных - перезапускается с задержкой."""
     # conn_params = settings.get_connection_params()
     conn_params = settings.Settings().dict()
-    es_conn = Elasticsearch(conn_params["es_params"], verify_certs=False)
+    es_conn = Elasticsearch(conn_params["es_params"]['host'], verify_certs=False)
     redis_conn = Redis(**conn_params["redis_params"])
     dsl = conn_params["pg_params"]
     pg_index_name = settings.pg_es_index_name

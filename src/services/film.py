@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from db.elastic import get_elastic
 from db.redis import get_redis
 from models.film import Film
+from .common import CommonQueryParams
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
@@ -56,6 +57,26 @@ class FilmService:
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
         await self.redis.set(film.id, film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
+
+    async def get_films(self, commons: CommonQueryParams = Depends(CommonQueryParams)) -> Optional[list[Film]]:
+        film = await self._get_films_from_elastic(commons)
+        return film
+
+    async def _get_films_from_elastic(self, commons: CommonQueryParams) -> Optional[Film]:
+
+        if commons.sort is not None:
+            sort = {'title.raw': commons.sort}
+        else:
+            sort = {}
+        if commons.filter_genre is not None:
+            query = {"match": {'genre': commons.filter_genre.title()}}
+        else:
+            query = {"match_all": {}}
+        films = await self.elastic.search(
+            index="movies", from_=commons.from_, sort=sort, size=commons.size, query=query
+        )
+        result = [Film(**film['_source']) for film in films.body['hits']['hits']]
+        return result
 
 
 @lru_cache()

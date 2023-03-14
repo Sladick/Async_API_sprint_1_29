@@ -11,7 +11,7 @@ def orjson_dumps(v, *, default):
 class Film(BaseModel):
     id: str
     title: str
-    description: str
+    description: str | None = ''
 
     class Config:
         # Заменяем стандартную работу с json на более быструю

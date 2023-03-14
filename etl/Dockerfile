@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED 1
 ENV PIP_NO_CACHE_DIR=1
 ENV POETRY_VERSION=1.3.2
 
-ENV DB_HOST 'new_admin_panel_sprint_3-postgres-1'
+ENV DB_HOST 'async_api_sprint_1_29-postgres-1'
 
 RUN pip install "poetry==$POETRY_VERSION"
 

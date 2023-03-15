@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 
 from psycopg import connection
-
 from state_rw import State
 
 

@@ -3,8 +3,8 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from services.common import CommonQueryParams, GenreFilter
 from services.film import FilmService, get_film_service
-from services.common import CommonQueryParams
 
 router = APIRouter()
 
@@ -12,48 +12,31 @@ router = APIRouter()
 class Film(BaseModel):
     id: str
     title: str
+    imdb_rating: float = 0
 
 
-# class Films(BaseModel):
-#     film_list
-
-
-# Внедряем FilmService с помощью Depends(get_film_service)
 @router.get("/{film_id}", response_model=Film)
 async def film_details(
     film_id: str, film_service: FilmService = Depends(get_film_service)
 ) -> Film:
     film = await film_service.get_by_id(film_id)
     if not film:
-        # Если фильм не найден, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
-    # Перекладываем данные из models.Film в Film
-    # Обратите внимание, что у модели бизнес-логики есть поле description
-    # Которое отсутствует в модели ответа API.
-    # Если бы использовалась общая модель для бизнес-логики и формирования ответов API
-    # вы бы предоставляли клиентам данные, которые им не нужны
-    # и, возможно, данные, которые опасно возвращать
-    return Film(id=film.id, title=film.title)
+    return Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
 
 
-@router.get("/allfilms/", response_model=list[Film])
-async def film_details(commons: CommonQueryParams = Depends(CommonQueryParams),
-    film_service: FilmService = Depends(get_film_service)
+@router.get("/", response_model=list[Film])
+async def film_details(
+    commons: CommonQueryParams = Depends(CommonQueryParams),
+    filter: GenreFilter = Depends(GenreFilter),
+    film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
-    films = await film_service.get_films(commons)
+    films = await film_service.get_films(commons, filter)
     if not films:
-        # Если фильм не найден, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
-    # Перекладываем данные из models.Film в Film
-    # Обратите внимание, что у модели бизнес-логики есть поле description
-    # Которое отсутствует в модели ответа API.
-    # Если бы использовалась общая модель для бизнес-логики и формирования ответов API
-    # вы бы предоставляли клиентам данные, которые им не нужны
-    # и, возможно, данные, которые опасно возвращать
-    return [Film(id=film.id, title=film.title) for film in films]
+    return [
+        Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
+        for film in films
+    ]

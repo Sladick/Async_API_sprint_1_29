@@ -2,7 +2,7 @@ import logging
 
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import Depends, FastAPI, Cookie
+from fastapi import Cookie, Depends, FastAPI
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
@@ -23,7 +23,10 @@ app = FastAPI(
 async def startup():
     redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
-        hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}", ],verify_certs=False
+        hosts=[
+            f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}",
+        ],
+        verify_certs=False,
     )
 
 

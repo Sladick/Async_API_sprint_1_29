@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Generator
 
-from models import MoviesTransformModel
 from service import NoNewDataError
 from state_rw import State
+
+from models import MoviesTransformModel
 
 
 class BaseTransformer(ABC):

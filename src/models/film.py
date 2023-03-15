@@ -1,7 +1,6 @@
 from typing import Optional
 
 import orjson
-
 from pydantic import BaseModel
 
 
@@ -20,15 +19,15 @@ class Person(BaseModel):
 
 class Film(BaseModel):
     actors: Optional[list[Person]]
-    actors_name: Optional[str]
+    actors_name: Optional[list[str]]
     id: str
     title: Optional[str]
     description: Optional[str] = None
-    director: Optional[str]
-    genre: Optional[str]
+    director: Optional[list[str]]
+    genre: Optional[list[str]]
     imdb_rating: Optional[float]
     writers: Optional[list[Person]]
-    writers_names: Optional[str]
+    writers_names: Optional[list[str]]
 
     class Config:
         json_loads = orjson.loads

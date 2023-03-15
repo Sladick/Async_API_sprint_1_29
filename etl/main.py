@@ -1,14 +1,13 @@
+import log
 import psycopg
+import settings
 from elastic_transport import ConnectionError as ESConnectionError
 from elasticsearch import Elasticsearch
+from extractors import BaseExtractor, PostgresExtractor
+from loaders import BaseLoader, ESLoader
 from psycopg.rows import dict_row
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-
-import log
-import settings
-from extractors import BaseExtractor, PostgresExtractor
-from loaders import BaseLoader, ESLoader
 from service import NoNewDataError, backoff, es_closing, redis_closing
 from state_rw import RedisStorage, State
 from transformers import BaseTransformer, PgESTransformer
@@ -38,7 +37,7 @@ def start_loads_pg_es():
     подключения или отсутствия новых данных - перезапускается с задержкой."""
     # conn_params = settings.get_connection_params()
     conn_params = settings.Settings().dict()
-    es_conn = Elasticsearch(conn_params["es_params"], verify_certs=False)
+    es_conn = Elasticsearch(conn_params["es_params"]["host"], verify_certs=False)
     redis_conn = Redis(**conn_params["redis_params"])
     dsl = conn_params["pg_params"]
     pg_index_name = settings.pg_es_index_name

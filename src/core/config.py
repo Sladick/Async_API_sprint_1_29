@@ -14,7 +14,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 # Настройки Elasticsearch
-ELASTIC_HOST = os.getenv("ELASTIC_HOST", "https://localhost")
+ELASTIC_HOST = os.getenv("ELASTIC_HOST", "http://localhost")
 ELASTIC_PORT = int(os.getenv("ELASTIC_PORT", 9200))
 
 # Корень проекта

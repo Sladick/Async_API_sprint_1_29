@@ -7,7 +7,7 @@ from pydantic.env_settings import SettingsSourceCallable
 
 class PostgresBaseSettingsSettings(BaseSettings):
     dbname: str
-    user: str = Field(env='dbuser')
+    user: str = Field(env="dbuser")
     password: str
     host: str
     port: int
@@ -27,16 +27,14 @@ class PostgresProdSettings(PostgresBaseSettingsSettings):
 
 
 class RedisBaseSettings(BaseSettings):
-
-    redis_host: str
-    redis_port: int
+    host: str = Field(env="redis_host")
+    port: int = Field(env="redis_port")
 
     class Config:
         env_file = ".env"
 
 
 class RedisDevSettings(RedisBaseSettings):
-
     class Config:
         env_file = "dev.env"
 
@@ -47,15 +45,13 @@ class RedisProdSettings(RedisBaseSettings):
 
 
 class ESBaseSettings(BaseSettings):
-
-    es_host: str
+    host: str = Field(env="es_host")
 
     class Config:
         env_file = ".env"
 
 
 class ESDevSettings(ESBaseSettings):
-
     class Config:
         env_file = "dev.env"
 
@@ -67,29 +63,22 @@ class ESProdSettings(ESBaseSettings):
 
 class Settings(BaseSettings):
     """Settings for establishing all connections."""
-    pg_config = dict(
-        dev=PostgresDevSettings,
-        prod=PostgresProdSettings
-    )
-    pg_params: PostgresBaseSettingsSettings = pg_config[os.environ.get('ENV', 'dev').lower()]()
 
-    redis_config = dict(
-        dev=RedisDevSettings,
-        prod=RedisProdSettings
-    )
-    redis_params: RedisBaseSettings = redis_config[os.environ.get('ENV', 'dev').lower()]()
+    pg_config = dict(dev=PostgresDevSettings, prod=PostgresProdSettings)
+    pg_params: PostgresBaseSettingsSettings = pg_config[
+        os.environ.get("ENV", "dev").lower()
+    ]()
 
-    es_config = dict(
-        dev=ESDevSettings,
-        prod=ESProdSettings
-    )
-    es_params: ESBaseSettings = es_config[os.environ.get('ENV', 'dev').lower()]()
+    redis_config = dict(dev=RedisDevSettings, prod=RedisProdSettings)
+    redis_params: RedisBaseSettings = redis_config[
+        os.environ.get("ENV", "dev").lower()
+    ]()
+
+    es_config = dict(dev=ESDevSettings, prod=ESProdSettings)
+    es_params: ESBaseSettings = es_config[os.environ.get("ENV", "dev").lower()]()
 
     class Config:
         env_file = ".env"
-
-
-
 
 
 def get_connection_params():

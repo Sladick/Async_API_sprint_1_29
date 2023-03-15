@@ -4,13 +4,15 @@ from typing import Optional
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
+from fastapi_redis_cache import cache
 
 from db.elastic import get_elastic
 from db.redis import get_redis
 from models.film import Film
 from .common import CommonQueryParams, GenreFilter
+from core.config import FILM_CACHE_EXPIRE_IN_SECONDS
 
-FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
+import orjson
 
 
 class FilmService:
@@ -22,46 +24,32 @@ class FilmService:
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
         """Dозвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
-        film = await self._film_from_cache(film_id)
-        if not film:
-            film = await self._get_film_from_elastic(film_id)
-            if not film:
-                return None
-            await self._put_film_to_cache(film)
+        result = await self._get_film_from_elastic(film_id)
+        film = orjson.loads(result.body)
+        return Film(**film)
 
-        return film
-
+    @cache(expire=FILM_CACHE_EXPIRE_IN_SECONDS)
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
         """Получает данные о фильме из ES по film_id."""
         try:
-            doc = await self.elastic.get("movies", film_id)
+            doc = await self.elastic.get(index="movies", id=film_id)
         except NotFoundError:
             return None
-        return Film(**doc["_source"])
-
-    async def _film_from_cache(self, film_id: str) -> Optional[Film]:
-        """Получает данные о фильме из кеша."""
-        data = await self.redis.get(film_id)
-        if not data:
-            return None
-
-        film = Film.parse_raw(data)
-        return film
-
-    async def _put_film_to_cache(self, film: Film):
-        """Сохраняем данные о фильме в кэш. Время жизни — 5 минут."""
-        await self.redis.set(film.id, film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
+        return doc["_source"]
 
     async def get_films(
         self, commons: CommonQueryParams, filter_: GenreFilter
     ) -> Optional[list[Film]]:
         """Dозвращает список фильмов. Он опционален, так как фильмы могут отсутствовать в базе"""
         try:
-            film = await self._get_films_from_elastic(commons, filter_)
+            results = await self._get_films_from_elastic(commons, filter_)
+            films = orjson.loads(results.body)
+            result = [Film(**film["_source"]) for film in films]
         except:
             return None
-        return film
+        return result
 
+    @cache(expire=FILM_CACHE_EXPIRE_IN_SECONDS)
     async def _get_films_from_elastic(
         self, commons: CommonQueryParams, filter_: GenreFilter
     ) -> Optional[Film]:
@@ -80,8 +68,11 @@ class FilmService:
             size=commons.size,
             query=query,
         )
-        result = [Film(**film["_source"]) for film in films.body["hits"]["hits"]]
-        return result
+
+        return films.body["hits"]["hits"]
+
+    def __str__(self):
+        return 'FilmService'
 
 
 @lru_cache()

@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from fastapi_redis_cache import cache
 
 from services.common import CommonQueryParams, GenreFilter
 from services.film import FilmService, get_film_service
@@ -29,10 +30,10 @@ async def film_details(
 @router.get("/", response_model=list[Film])
 async def film_details(
     commons: CommonQueryParams = Depends(CommonQueryParams),
-    filter: GenreFilter = Depends(GenreFilter),
+    filter_: GenreFilter = Depends(GenreFilter),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
-    films = await film_service.get_films(commons, filter)
+    films = await film_service.get_films(commons, filter_)
     if not films:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 

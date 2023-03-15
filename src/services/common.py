@@ -9,7 +9,12 @@ class CommonQueryParams:
         else:
             self.sort = None
 
+    def __str__(self):
+        return f"sort={self.sort}&page={self.from_}&size={self.size}"
 
 class GenreFilter:
     def __init__(self, genre: str | None = None):
         self.genre = genre
+
+    def __str__(self):
+        return f"genre={self.genre}"

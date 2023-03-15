@@ -2,14 +2,16 @@ import logging
 
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import Cookie, Depends, FastAPI
+from fastapi import Cookie, Depends, FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
+from fastapi_redis_cache import FastApiRedisCache, cache
 
 from api.v1 import films
 from core import config
 from core.logger import LOGGING
 from db import elastic, redis
+from services.film import FilmService
 
 app = FastAPI(
     title=config.PROJECT_NAME,
@@ -27,6 +29,13 @@ async def startup():
             f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}",
         ],
         verify_certs=False,
+    )
+    redis_cache = FastApiRedisCache()
+    redis_cache.init(
+        host_url=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
+        prefix="myapi-cache",
+        response_header="X-MyAPI-Cache",
+        ignore_arg_types=[Request, Response, FilmService]
     )
 
 

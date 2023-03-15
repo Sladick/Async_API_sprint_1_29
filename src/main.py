@@ -2,7 +2,7 @@ import logging
 
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Cookie
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 

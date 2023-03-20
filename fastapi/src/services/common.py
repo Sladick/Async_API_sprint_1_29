@@ -1,21 +1,30 @@
-class CommonQueryParams:
-    sorts = {"imdb_rating": "imdb_rating"}
+from pydantic import UUID4, BaseModel
 
-    def __init__(self, sort: str | None = None, page: int = 0, size: int = 20):
-        self.from_ = page * size
+
+class CommonQueryParams:
+    sorts = {
+        "imdb_rating": {"imdb_rating": "asc"},
+        "-imdb_rating": {"imdb_rating": "desc"},
+    }
+
+    def __init__(self, page: int = 1, size: int = 20, sort: str | None = None):
+        self.page = page
         self.size = size
+        self.from_ = (page - 1) * size
+
         if sort in self.sorts:
             self.sort = self.sorts[sort]
         else:
             self.sort = None
 
     def __str__(self):
+        """Нужна для корректного формированию ключа в кэше (Redis)."""
         return f"sort={self.sort}&page={self.from_}&size={self.size}"
 
 
-class GenreFilter:
-    def __init__(self, genre: str | None = None):
-        self.genre = genre
+class Uuid(BaseModel):
+    uuid: UUID4
 
     def __str__(self):
-        return f"genre={self.genre}"
+        """Нужна для корректного формированию ключа в кэше (Redis)."""
+        return f"uuid={self.uuid}"

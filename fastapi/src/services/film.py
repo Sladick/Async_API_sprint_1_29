@@ -2,16 +2,19 @@ from functools import lru_cache
 from typing import Optional
 
 import orjson
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
 from fastapi_redis_cache import cache
 from redis.asyncio import Redis
+from starlette.responses import Response
+
+from fastapi import Depends, Query
 
 from core.config import FILM_CACHE_EXPIRE_IN_SECONDS
 from db.elastic import get_elastic
 from db.redis import get_redis
-from fastapi import Depends
-from models.film import Film
-from services.common import CommonQueryParams, GenreFilter
+from models.film import Film, Genre, Person
+from services.common import CommonQueryParams
+from services.filmdependencies import FilmQuery, GenreFilter, MatchQuery
 
 
 class FilmService:
@@ -25,7 +28,7 @@ class FilmService:
         """Dозвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
         result = await self._get_film_from_elastic(film_id)
         film = orjson.loads(result.body)
-        return Film(**film)
+        return self._json_to_film(film)
 
     @cache(expire=FILM_CACHE_EXPIRE_IN_SECONDS)
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
@@ -37,38 +40,76 @@ class FilmService:
         return doc["_source"]
 
     async def get_films(
-        self, commons: CommonQueryParams, filter_: GenreFilter
+        self,
+        commons: CommonQueryParams,
+        filter_: GenreFilter | None = None,
+        match_query: MatchQuery | None = None,
+        cache_: bool = False
     ) -> Optional[list[Film]]:
-        """Dозвращает список фильмов. Он опционален, так как фильмы могут отсутствовать в базе"""
+        """Возвращает список фильмов, полученных из данных JSON"""
+        query = FilmQuery(filter_=filter_, match_query=match_query)
         try:
-            results = await self._get_films_from_elastic(commons, filter_)
-            films = orjson.loads(results.body)
-            result = [Film(**film["_source"]) for film in films]
-        except:
+            if cache_:
+                results = await self._get_films_with_cache(commons=commons, query=query)
+                results = orjson.loads(results.body)
+            else:
+                results = await self._get_films_without_cache(
+                    commons=commons, query=query
+                )
+            result = [self._json_to_film(film["_source"]) for film in results]
+        except BadRequestError:
             return None
         return result
 
     @cache(expire=FILM_CACHE_EXPIRE_IN_SECONDS)
-    async def _get_films_from_elastic(
-        self, commons: CommonQueryParams, filter_: GenreFilter
-    ) -> Optional[Film]:
-        if commons.sort is not None:
-            sort = {commons.sort: "desc"}
-        else:
-            sort = {}
-        if filter_.genre is not None:
-            query = {"match": {"genre": filter_.genre.title()}}
-        else:
-            query = {"match_all": {}}
+    async def _get_films_with_cache(
+        self,
+        commons: CommonQueryParams,
+        query: FilmQuery,
+    ) -> Optional[Response]:
+
         films = await self.elastic.search(
             index="movies",
             from_=commons.from_,
-            sort=sort,
+            sort=commons.sort,
             size=commons.size,
-            query=query,
+            query=query.query,
         )
 
         return films.body["hits"]["hits"]
+
+    async def _get_films_without_cache(
+        self,
+        commons: CommonQueryParams,
+        query: FilmQuery,
+    ) -> Optional[Response]:
+
+        films = await self.elastic.search(
+            index="movies",
+            from_=commons.from_,
+            sort=commons.sort,
+            size=commons.size,
+            query=query.query,
+        )
+
+        return films.body["hits"]["hits"]
+
+    def _json_to_film(self, films_json):
+        actors = [Person(**f) for f in films_json["actors"]]
+        directors = [Person(**f) for f in films_json["directors"]]
+        writers = [Person(**f) for f in films_json["writers"]]
+        genre = [Person(**f) for f in films_json["genre"]]
+        film = Film(
+            id=films_json["id"],
+            imdb_rating=films_json["imdb_rating"],
+            description=films_json["description"],
+            title=films_json["title"],
+            actors=actors,
+            directors=directors,
+            writers=writers,
+            genre=genre,
+        )
+        return film
 
     def __str__(self):
         return "FilmService"

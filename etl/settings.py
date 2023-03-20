@@ -127,7 +127,15 @@ tables = [
                            ) FILTER (WHERE p.id is not null),
                            '[]'
                         ) as persons,
-                       array_agg(DISTINCT COALESCE(g.name, '')) as genres
+                       COALESCE (
+                           json_agg(
+                               DISTINCT jsonb_build_object(
+                                   'genre_id', g.id,
+                                   'genre_name', g.name
+                               )
+                           ) FILTER (WHERE g.id is not null),
+                           '[]'
+                        ) as genres
                        FROM content.film_work fw
                        LEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id
                        LEFT JOIN content.person p ON p.id = pfw.person_id
@@ -159,7 +167,15 @@ tables = [
                                ) FILTER (WHERE p.id is not null),
                                '[]'
                             ) as persons,
-                           array_agg(DISTINCT COALESCE(g.name, '')) as genres
+                           COALESCE (
+                           json_agg(
+                               DISTINCT jsonb_build_object(
+                                   'genre_id', g.id,
+                                   'genre_name', g.name
+                               )
+                           ) FILTER (WHERE g.id is not null),
+                           '[]'
+                            ) as genres
                            FROM content.person p
                            LEFT JOIN content.person_film_work pfw ON pfw.person_id = p.id
                            LEFT JOIN content.film_work fw ON fw.id = pfw.film_work_id
@@ -191,7 +207,15 @@ tables = [
                                    ) FILTER (WHERE p.id is not null),
                                    '[]'
                                 ) as persons,
-                               array_agg(DISTINCT COALESCE(g.name, '')) as genres
+                               COALESCE (
+                                    json_agg(
+                                        DISTINCT jsonb_build_object(
+                                            'genre_id', g.id,
+                                            'genre_name', g.name
+                                        )
+                                    ) FILTER (WHERE g.id is not null),
+                                    '[]'
+                                ) as genres
                                FROM content.genre g
                                LEFT JOIN content.genre_film_work gfw ON gfw.genre_id = g.id
                                LEFT JOIN content.film_work fw ON fw.id = gfw.film_work_id
@@ -238,7 +262,6 @@ es_mapping = {
     "properties": {
         "id": {"type": "keyword"},
         "imdb_rating": {"type": "float"},
-        "genre": {"type": "keyword"},
         "title": {
             "type": "text",
             "analyzer": "ru_en",
@@ -248,6 +271,22 @@ es_mapping = {
         "director": {"type": "text", "analyzer": "ru_en"},
         "actors_names": {"type": "text", "analyzer": "ru_en"},
         "writers_names": {"type": "text", "analyzer": "ru_en"},
+        "genre": {
+            "type": "nested",
+            "dynamic": "strict",
+            "properties": {
+                "id": {"type": "keyword"},
+                "name": {"type": "text", "analyzer": "ru_en"},
+            },
+        },
+        "directors": {
+            "type": "nested",
+            "dynamic": "strict",
+            "properties": {
+                "id": {"type": "keyword"},
+                "name": {"type": "text", "analyzer": "ru_en"},
+            },
+        },
         "actors": {
             "type": "nested",
             "dynamic": "strict",

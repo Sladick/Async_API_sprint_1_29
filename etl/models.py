@@ -9,17 +9,18 @@ class MoviesTransformModel:
     key: str
     id: str
     title: str
-    description: str
     persons: list
     genres: list
     created: datetime
     modified: datetime
     rating: float = 0
     type: str = field(default="")
+    description: str = field(default="")
     genre: list = field(init=False)
     director: list = field(init=False)
     actors_names: list = field(init=False)
     writers_names: list = field(init=False)
+    directors: list = field(init=False)
     actors: list = field(init=False)
     writers: list = field(init=False)
     imdb_rating: float = field(init=False)
@@ -35,6 +36,11 @@ class MoviesTransformModel:
             for i in self.persons
             if i["person_role"] == "writer"
         ]
+        self.directors = [
+            {"id": i["person_id"], "name": i["person_name"]}
+            for i in self.persons
+            if i["person_role"] == "director"
+        ]
         self.actors_names = [
             i["person_name"] for i in self.persons if i["person_role"] == "actor"
         ]
@@ -44,7 +50,10 @@ class MoviesTransformModel:
         self.director = [
             i["person_name"] for i in self.persons if i["person_role"] == "director"
         ]
-        self.genre = self.genres
+        self.genre = [
+            {"id": i["genre_id"], "name": i["genre_name"]}
+            for i in self.genres
+        ]
         self.imdb_rating = self.rating
 
     def as_dict(self) -> dict:
@@ -56,6 +65,7 @@ class MoviesTransformModel:
             "title": self.title,
             "description": self.description,
             "director": self.director,
+            "directors": self.directors,
             "actors_names": self.actors_names,
             "writers_names": self.writers_names,
             "actors": self.actors,

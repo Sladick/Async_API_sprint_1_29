@@ -6,12 +6,12 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi_redis_cache import cache
 from redis.asyncio import Redis
 
-from core.config import FILM_CACHE_EXPIRE_IN_SECONDS
-from db.elastic import get_elastic
-from db.redis import get_redis
+from src.core.config import FILM_CACHE_EXPIRE_IN_SECONDS
+from src.db.elastic import get_elastic
+from src.db.redis import get_redis
 from fastapi import Depends
-from models.film import Film
-from services.common import CommonQueryParams, GenreFilter
+from src.models.film import Film
+from src.services.common import CommonQueryParams, GenreFilter
 
 
 class FilmService:
@@ -22,7 +22,7 @@ class FilmService:
         self.elastic = elastic
 
     async def get_by_id(self, film_id: str) -> Optional[Film]:
-        """Dозвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
+        """Возвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
         result = await self._get_film_from_elastic(film_id)
         film = orjson.loads(result.body)
         return Film(**film)

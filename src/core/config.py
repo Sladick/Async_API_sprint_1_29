@@ -4,7 +4,7 @@ from logging import config as logging_config
 
 from pydantic import BaseSettings, Field
 
-from core.logger import LOGGING
+from src.core.logger import LOGGING
 
 
 class AppBaseSettings(BaseSettings):
@@ -59,3 +59,5 @@ ELASTIC_PORT = conn_params.params.es_port
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
+GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 5
+PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5

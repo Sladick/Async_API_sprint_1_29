@@ -1,17 +1,15 @@
 from http import HTTPStatus
 
-from fastapi_redis_cache import cache
-from pydantic import BaseModel
-
 from fastapi import APIRouter, Depends, HTTPException
-from services.common import CommonQueryParams, GenreFilter
-from services.film import FilmService, get_film_service
+
+from src.models.mixins import UUIDMixin
+from src.services.common import CommonQueryParams, GenreFilter
+from src.services.film import FilmService, get_film_service
 
 router = APIRouter()
 
 
-class Film(BaseModel):
-    id: str
+class Film(UUIDMixin):
     title: str
     imdb_rating: float = 0
 
@@ -24,20 +22,17 @@ async def film_details(
     if not film:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
-    return Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
+    return Film(**film.dict())
 
 
 @router.get("/", response_model=list[Film])
-async def film_details(
+async def film_list(
     commons: CommonQueryParams = Depends(CommonQueryParams),
     filter_: GenreFilter = Depends(GenreFilter),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     films = await film_service.get_films(commons, filter_)
     if not films:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="films not found")
 
-    return [
-        Film(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
-        for film in films
-    ]
+    return [Film(**film.dict()) for film in films]

@@ -1,17 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Generator
+from dataclasses import asdict
+from typing import Any, Generator
 
+from etl.models import GenresTransformModel, MoviesTransformModel, PersonsTransformModel
 from service import NoNewDataError
 from state_rw import State
-
-from models import MoviesTransformModel
 
 
 class BaseTransformer(ABC):
     """Abstract class for all transformers."""
 
     @abstractmethod
-    def transform(self, data: dict) -> tuple[dict, Generator]:
+    def transform(self, transform_model: Any, data: dict) -> tuple[dict, Generator]:
         """Transform data from data source format to data storage format"""
         pass
 
@@ -22,25 +22,17 @@ class PgESTransformer(BaseTransformer):
     def __init__(self, state: State):
         self.state = state
 
-    def transform(self, data: dict) -> tuple[dict, Generator]:
+    def transform(self, table_name: str, transform_model, data: list) -> tuple[dict, Generator]:
         """Transform data and get new state parameters"""
-        new_params = {}
-        new_data = []
-        for k, v in data.items():
-            try:
-                new_params[f"{k}_last_id"] = v[len(v) - 1]["key"]
-            except IndexError:
-                new_params[f"{k}_last_id"] = self.state.get_state(f"{k}_last_id")
-            new_data = new_data + v
-
-        if not len(list(new_data)):
+        if not data:
             raise NoNewDataError()
-        new_data = self.__get_new_objects(list(new_data))
 
-        return new_params, new_data
+        new_data = self.__get_new_objects(transform_model, data)
+
+        return new_data
 
     @staticmethod
-    def __get_new_objects(lst) -> Generator:
+    def __get_new_objects(transform_model, lst) -> Generator:
         for i in lst:
-            transformed_object = MoviesTransformModel(**i)
+            transformed_object = transform_model(**i)
             yield transformed_object.as_dict()

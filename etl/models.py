@@ -5,8 +5,6 @@ from datetime import datetime
 @dataclass()
 class MoviesTransformModel:
     """Movies PG - ES Transform model."""
-
-    key: str
     id: str
     title: str
     description: str
@@ -60,5 +58,52 @@ class MoviesTransformModel:
             "writers_names": self.writers_names,
             "actors": self.actors,
             "writers": self.writers,
+            "modified": self.modified,
         }
+
         return rd
+
+
+@dataclass
+class GenresTransformModel:
+    """Genres PG - ES Transform model."""
+    id: str
+    name: str
+    description: str
+    modified: datetime
+
+    def as_dict(self) -> dict:
+        """Returns ES required properties as dict."""
+        rd = {
+            "id": self.id,
+            "genre_name": self.name,
+            "description": self.description,
+            "modified": self.modified,
+        }
+
+        return rd
+
+
+@dataclass
+class PersonsTransformModel:
+    """Persons PG - ES Transform model."""
+    id: str
+    full_name: str
+    modified: datetime
+
+    def as_dict(self) -> dict:
+        """Returns ES required properties as dict."""
+        rd = {
+            "id": self.id,
+            "full_name": self.full_name,
+            "modified": self.modified,
+        }
+
+        return rd
+
+
+transform_model_dict = {
+    "movies": MoviesTransformModel,
+    "genres": GenresTransformModel,
+    "persons": PersonsTransformModel,
+}

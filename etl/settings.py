@@ -2,7 +2,6 @@ import os
 
 from dotenv import load_dotenv
 from pydantic import BaseSettings, Field
-from pydantic.env_settings import SettingsSourceCallable
 
 
 class PostgresBaseSettingsSettings(BaseSettings):
@@ -102,138 +101,31 @@ def get_connection_params():
     return {"dsl": dsl, "es_params": es_params, "redis_params": redis_params}
 
 
-pg_es_index_name = "movies"
+settings = Settings()
 
 
-tables = [
-    {
-        "table_name": "film_work",
-        "select_query": """SELECT
-                       fw.id as key,
-                       fw.id,
-                       fw.title,
-                       fw.description,
-                       fw.rating,
-                       fw.type,
-                       fw.created,
-                       fw.modified,
-                       COALESCE (
-                           json_agg(
-                               DISTINCT jsonb_build_object(
-                                   'person_role', pfw.role,
-                                   'person_id', p.id,
-                                   'person_name', p.full_name
-                               )
-                           ) FILTER (WHERE p.id is not null),
-                           '[]'
-                        ) as persons,
-                       array_agg(DISTINCT COALESCE(g.name, '')) as genres
-                       FROM content.film_work fw
-                       LEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id
-                       LEFT JOIN content.person p ON p.id = pfw.person_id
-                       LEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id
-                       LEFT JOIN content.genre g ON g.id = gfw.genre_id
-                       WHERE fw.id > %(uuid)s
-                       GROUP BY fw.id
-                       ORDER BY fw.modified, fw.id
-                       LIMIT %(n)s;""",
-    },
-    {
-        "table_name": "person",
-        "select_query": """SELECT
-                           p.id as key,
-                           fw.id,
-                           fw.title,
-                           fw.description,
-                           fw.rating,
-                           fw.type,
-                           max(p.created) as created,
-                           max(p.modified) as modified,
-                           COALESCE (
-                               json_agg(
-                                   DISTINCT jsonb_build_object(
-                                       'person_role', pfw.role,
-                                       'person_id', p.id,
-                                       'person_name', p.full_name
-                                   )
-                               ) FILTER (WHERE p.id is not null),
-                               '[]'
-                            ) as persons,
-                           array_agg(DISTINCT COALESCE(g.name, '')) as genres
-                           FROM content.person p
-                           LEFT JOIN content.person_film_work pfw ON pfw.person_id = p.id
-                           LEFT JOIN content.film_work fw ON fw.id = pfw.film_work_id
-                           LEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id
-                           LEFT JOIN content.genre g ON g.id = gfw.genre_id
-                           WHERE p.id > %(uuid)s
-                           GROUP BY p.id, fw.id
-                           ORDER BY max(p.modified), fw.id
-                           LIMIT %(n)s""",
-    },
-    {
-        "table_name": "genre",
-        "select_query": """SELECT
-                               g.id as key,
-                               fw.id,
-                               fw.title,
-                               fw.description,
-                               fw.rating,
-                               fw.type,
-                               max(g.created) as created,
-                               max(g.modified) as modified,
-                               COALESCE (
-                                   json_agg(
-                                       DISTINCT jsonb_build_object(
-                                           'person_role', pfw.role,
-                                           'person_id', p.id,
-                                           'person_name', p.full_name
-                                       )
-                                   ) FILTER (WHERE p.id is not null),
-                                   '[]'
-                                ) as persons,
-                               array_agg(DISTINCT COALESCE(g.name, '')) as genres
-                               FROM content.genre g
-                               LEFT JOIN content.genre_film_work gfw ON gfw.genre_id = g.id
-                               LEFT JOIN content.film_work fw ON fw.id = gfw.film_work_id
-                               LEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id
-                               LEFT JOIN content.person p ON p.id = pfw.person_id
-                               WHERE g.id > %(uuid)s                              
-                               GROUP BY g.id, fw.id
-                               ORDER BY max(g.modified), fw.id
-                               LIMIT %(n)s""",
-    },
-]
-
-
-es_settings = {
-    "refresh_interval": "1s",
-    "analysis": {
-        "filter": {
-            "english_stop": {"type": "stop", "stopwords": "_english_"},
-            "english_stemmer": {"type": "stemmer", "language": "english"},
-            "english_possessive_stemmer": {
-                "type": "stemmer",
-                "language": "possessive_english",
+base_es_settings = {
+        'refresh_interval': '1s',
+        'analysis':
+            {
+                'filter': {
+                    'english_stop': {'type': 'stop', 'stopwords': '_english_'},
+                    'english_stemmer': {'type': 'stemmer', 'language': 'english'},
+                    'english_possessive_stemmer': {'type': 'stemmer', 'language': 'possessive_english'},
+                    'russian_stop': {'type': 'stop', 'stopwords': '_russian_'},
+                    'russian_stemmer': {'type': 'stemmer', 'language': 'russian'}
+                },
+                'analyzer': {
+                    'ru_en': {
+                        'tokenizer': 'standard',
+                        'filter': ['lowercase', 'english_stop', 'english_stemmer', 'english_possessive_stemmer',
+                                   'russian_stop', 'russian_stemmer']
+                    }
+                }
             },
-            "russian_stop": {"type": "stop", "stopwords": "_russian_"},
-            "russian_stemmer": {"type": "stemmer", "language": "russian"},
-        },
-        "analyzer": {
-            "ru_en": {
-                "tokenizer": "standard",
-                "filter": [
-                    "lowercase",
-                    "english_stop",
-                    "english_stemmer",
-                    "english_possessive_stemmer",
-                    "russian_stop",
-                    "russian_stemmer",
-                ],
-            }
-        },
-    },
 }
-es_mapping = {
+
+es_movies_mapping = {
     "dynamic": "strict",
     "properties": {
         "id": {"type": "keyword"},
@@ -264,5 +156,105 @@ es_mapping = {
                 "name": {"type": "text", "analyzer": "ru_en"},
             },
         },
+        "modified": {
+            "type": "date"
+        }
+    },
+}
+
+es_genres_mapping = {
+    "dynamic": "strict",
+    "properties": {
+        "id": {"type": "keyword"},
+        "genre_name": {
+            "type": "text",
+            "analyzer": "ru_en",
+            "fields": {"raw": {"type": "keyword"}},
+        },
+        "description": {"type": "keyword"},
+        "modified": {
+            "type": "date"
+        }
+    },
+}
+
+es_persons_mapping = {
+    "dynamic": "strict",
+    "properties": {
+        "id": {"type": "keyword"},
+        "full_name": {
+            "type": "text",
+            "analyzer": "ru_en",
+            "fields": {"raw": {"type": "keyword"}},
+        },
+        "modified": {
+            "type": "date"
+        }
+    },
+}
+
+pg_es_index_name_with_mappings_dict = {
+    "movies": es_movies_mapping,
+    "genres": es_genres_mapping,
+    "persons": es_persons_mapping
+}
+
+
+index_to_tables_dict = {
+    "movies": {
+        "table_name": "film_work",
+        "select_query": """SELECT
+                       fw.id,
+                       fw.title,
+                       fw.description,
+                       fw.rating,
+                       fw.type,
+                       fw.created,
+                       fw.modified,
+                       COALESCE (
+                           json_agg(
+                               DISTINCT jsonb_build_object(
+                                   'person_role', pfw.role,
+                                   'person_id', p.id,
+                                   'person_name', p.full_name
+                               )
+                           ) FILTER (WHERE p.id is not null),
+                           '[]'
+                        ) as persons,
+                       array_agg(DISTINCT COALESCE(g.name, '')) as genres
+                       FROM content.film_work fw
+                       LEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id
+                       LEFT JOIN content.person p ON p.id = pfw.person_id
+                       LEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id
+                       LEFT JOIN content.genre g ON g.id = gfw.genre_id
+                       WHERE fw.modified > %(state)s::timestamp OR p.modified > %(state)s::timestamp OR g.modified > %(state)s::timestamp
+                       GROUP BY fw.id
+                       ORDER BY fw.modified DESC;
+                       """,
+    },
+    "persons": {
+        "table_name": "person",
+        "select_query": """SELECT
+                               p.id,
+                               p.full_name,
+                               p.modified
+                           FROM content.person p
+                           WHERE p.modified > %(state)s::timestamp
+                           GROUP BY p.id
+                           ORDER BY p.modified DESC;
+                           """,
+    },
+    "genres": {
+        "table_name": "genre",
+        "select_query": """SELECT
+                               g.id,
+                               g.name,
+                               g.description,
+                               g.modified
+                           FROM content.genre g
+                           WHERE g.modified > %(state)s::timestamp             
+                           GROUP BY g.id
+                           ORDER BY g.modified DESC;
+                           """,
     },
 }

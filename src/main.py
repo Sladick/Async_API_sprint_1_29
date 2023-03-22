@@ -1,17 +1,18 @@
-import logging
 import os
 
 import uvicorn
 from elasticsearch import AsyncElasticsearch
-from fastapi_redis_cache import FastApiRedisCache, cache
-from redis.asyncio import Redis
-
-from api.v1 import films
-from core import config
-from core.logger import LOGGING
-from db import elastic, redis
-from fastapi import Cookie, Depends, FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse
+from fastapi_redis_cache import FastApiRedisCache
+from pydantic import ValidationError
+from redis.asyncio import Redis
+from starlette.responses import JSONResponse
+
+from src.api.v1 import films, genres, persons
+from src.core import config
+from src.db import elastic, redis
 
 app = FastAPI(
     title=config.PROJECT_NAME,
@@ -21,15 +22,19 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors()}),
+    )
+
+
 @app.on_event("startup")
 async def startup():
     redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
-    elastic.es = AsyncElasticsearch(
-        hosts=[
-            f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}",
-        ],
-        verify_certs=False,
-    )
+    elastic.es = AsyncElasticsearch(hosts=[f"{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"], verify_certs=False)
+
     redis_cache = FastApiRedisCache()
     redis_cache.init(
         host_url=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
@@ -45,10 +50,9 @@ async def shutdown():
     await elastic.es.close()
 
 
-# Подключаем роутер к серверу, указав префикс /v1/films
-# Теги указываем для удобства навигации по документации
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
-
+app.include_router(genres.router, prefix="/api/v1/genres", tags=["genres"])
+app.include_router(persons.router, prefix="/api/v1/persons", tags=["persons"])
 
 if __name__ == "__main__":
     if os.environ.get("ENV", "dev") == "dev":

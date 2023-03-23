@@ -12,8 +12,13 @@
 
 ### Запуск проекта:
 
-Из папки проекта выполнить:  
-`$ docker compose up --build -d`  
+Для разработки и отладки:  
+`$ docker compose -f docker-compose.yml up --build -d`  
+При необходимости можно отключить запуск сервиса fastapi закомментировав его блок.
+
+
+Для "продакшен" среды:  
+`$ docker compose -f docker-compose_prod.yml up --build -d`  
 .  
 .  
 .

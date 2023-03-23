@@ -1,7 +1,7 @@
 import os
 
 import uvicorn
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, Elasticsearch
 from fastapi import FastAPI, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse

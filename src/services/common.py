@@ -1,4 +1,5 @@
 from fastapi import Query
+from pydantic import BaseModel, UUID4
 
 
 class CommonQueryParamsMixin:
@@ -18,20 +19,24 @@ class CommonQueryParamsMixin:
 
 
 class CommonQueryParams:
-    sorts = {"imdb_rating": "imdb_rating"}
+    sorts = {
+        "imdb_rating": {"imdb_rating": "asc"},
+        "-imdb_rating": {"imdb_rating": "desc"},
+    }
 
-    def __init__(self, sort: str | None = None, page: int = 1, size: int = 20):
-        self.from_ = page * size
+    def __init__(self, page: int = 1, size: int = 20, sort: str | None = None):
+        self.from_ = (page - 1) * size
         self.size = size
         self.sort = self.sorts.get(sort)
 
     def __str__(self):
+        """Нужна для корректного формированию ключа в кэше (Redis)."""
         return f"sort={self.sort}&page={self.from_}&size={self.size}"
 
 
-class GenreFilter:
-    def __init__(self, genre: str | None = None):
-        self.genre = genre
+class Uuid(BaseModel):
+    uuid: UUID4
 
     def __str__(self):
-        return f"genre={self.genre}"
+        """Нужна для корректного формированию ключа в кэше (Redis)."""
+        return f"uuid={self.uuid}"

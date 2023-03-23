@@ -1,15 +1,15 @@
 import orjson
 from pydantic import BaseModel
 
-
-def orjson_dumps(v, *, default):
-    return orjson.dumps(v, default=default).decode()
+from src.models.utils import orjson_dumps
 
 
-class Person(BaseModel):
+class UUIDMixin(BaseModel):
     id: str
-    full_name: str
 
+
+class OrjsonConfigMixin(BaseModel):
     class Config:
         json_loads = orjson.loads
         json_dumps = orjson_dumps
+        validate_assignment = True

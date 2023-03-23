@@ -3,18 +3,18 @@ from typing import Optional
 
 import orjson
 from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
+from fastapi import Depends
 from fastapi_redis_cache import cache
+from pydantic import UUID4
 from redis.asyncio import Redis
 from starlette.responses import Response
 
-from fastapi import Depends, Query
-
-from core.config import FILM_CACHE_EXPIRE_IN_SECONDS
-from db.elastic import get_elastic
-from db.redis import get_redis
-from models.film import Film, Genre, Person
-from services.common import CommonQueryParams
-from services.filmdependencies import FilmQuery, GenreFilter, MatchQuery
+from src.core.config import FILM_CACHE_EXPIRE_IN_SECONDS
+from src.db.elastic import get_elastic
+from src.db.redis import get_redis
+from src.models.film import Film, Genre, Person
+from src.services.common import CommonQueryParams
+from src.services.filmdependencies import FilmQuery, GenreFilter, MatchQuery
 
 
 class FilmService:
@@ -24,9 +24,9 @@ class FilmService:
         self.redis = redis
         self.elastic = elastic
 
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
-        """Dозвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
-        result = await self._get_film_from_elastic(film_id)
+    async def get_by_id(self, film_id: UUID4) -> Optional[Film]:
+        """Возвращает объект фильма. Он опционален, так как фильм может отсутствовать в базе"""
+        result = await self._get_film_from_elastic(str(film_id))
         film = orjson.loads(result.body)
         return self._json_to_film(film)
 
@@ -53,21 +53,16 @@ class FilmService:
                 results = await self._get_films_with_cache(commons=commons, query=query)
                 results = orjson.loads(results.body)
             else:
-                results = await self._get_films_without_cache(
-                    commons=commons, query=query
-                )
+                results = await self._get_films_without_cache(commons=commons, query=query)
+
             result = [self._json_to_film(film["_source"]) for film in results]
         except BadRequestError:
             return None
+
         return result
 
     @cache(expire=FILM_CACHE_EXPIRE_IN_SECONDS)
-    async def _get_films_with_cache(
-        self,
-        commons: CommonQueryParams,
-        query: FilmQuery,
-    ) -> Optional[Response]:
-
+    async def _get_films_with_cache(self, commons: CommonQueryParams, query: FilmQuery) -> Optional[Response]:
         films = await self.elastic.search(
             index="movies",
             from_=commons.from_,
@@ -94,11 +89,12 @@ class FilmService:
 
         return films.body["hits"]["hits"]
 
-    def _json_to_film(self, films_json):
+    @staticmethod
+    def _json_to_film(films_json):
         actors = [Person(**f) for f in films_json["actors"]]
         directors = [Person(**f) for f in films_json["directors"]]
         writers = [Person(**f) for f in films_json["writers"]]
-        genre = [Person(**f) for f in films_json["genre"]]
+        genre = [Genre(**f) for f in films_json["genre"]]
         film = Film(
             id=films_json["id"],
             imdb_rating=films_json["imdb_rating"],

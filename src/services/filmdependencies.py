@@ -1,5 +1,4 @@
 from pydantic import UUID4, BaseModel
-from fastapi import Depends
 
 
 class GenreFilter(BaseModel):
@@ -25,7 +24,7 @@ class FilmQuery:
         self.filter_ = filter_
         self.match_query = match_query
 
-        if self.filter_ is not None:
+        if hasattr(self.filter_, "genre") and self.filter_.genre:
             self.query = {
                 "bool": {
                     "filter": {
@@ -36,7 +35,7 @@ class FilmQuery:
                     }
                 }
             }
-        elif self.match_query is not None:
+        elif hasattr(self.match_query, "query") and self.match_query.query:
             self.query = {
                 "multi_match": {
                     "query": self.match_query.query,

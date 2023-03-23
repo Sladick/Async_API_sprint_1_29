@@ -1,28 +1,25 @@
 from http import HTTPStatus
 
-from pydantic import UUID4, BaseModel
-
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 
-from services.common import CommonQueryParams
-from services.film import FilmService, get_film_service
-from services.filmdependencies import GenreFilter, MatchQuery, FilmQuery
+from src.models.mixins import UUIDMixin
+from src.services.common import CommonQueryParams
+from src.services.film import FilmService, get_film_service
+from src.services.filmdependencies import GenreFilter, MatchQuery, FilmQuery
 
 router = APIRouter()
 
 
-class Genre(BaseModel):
-    uuid: UUID4
+class Genre(UUIDMixin):
     name: str
 
 
-class Person(BaseModel):
-    uuid: UUID4
-    full_name: str
+class Person(UUIDMixin):
+    name: str
 
 
-class Film(BaseModel):
-    id: str
+class Film(UUIDMixin):
     title: str
     imdb_rating: float = 0
     description: str
@@ -32,8 +29,7 @@ class Film(BaseModel):
     directors: list[Person] = []
 
 
-class FilmForList(BaseModel):
-    id: str
+class FilmForList(UUIDMixin):
     title: str
     imdb_rating: float = 0
 
@@ -46,16 +42,7 @@ async def film_details(
     if not film:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
-    return Film(
-        id=film.id,
-        title=film.title,
-        imdb_rating=film.imdb_rating,
-        description=film.description,
-        actors=[Person(uuid=p.id, full_name=p.name) for p in film.actors],
-        writers=[Person(uuid=p.id, full_name=p.name) for p in film.writers],
-        directors=[Person(uuid=p.id, full_name=p.name) for p in film.directors],
-        genre=[Genre(uuid=g.id, name=g.name) for g in film.genre],
-    )
+    return Film(**film.dict())
 
 
 @router.get("/", response_model=list[FilmForList])
@@ -69,10 +56,7 @@ async def films_details_cache(
     if not films:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="bad parameters")
 
-    return [
-        FilmForList(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
-        for film in films
-    ]
+    return [FilmForList(**film.dict()) for film in films]
 
 
 @router.get("/search/", response_model=list[FilmForList])
@@ -86,7 +70,4 @@ async def films_details_no_cache(
     if not films:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="mo matches")
 
-    return [
-        FilmForList(id=film.id, title=film.title, imdb_rating=film.imdb_rating)
-        for film in films
-    ]
+    return [FilmForList(**film.dict()) for film in films]

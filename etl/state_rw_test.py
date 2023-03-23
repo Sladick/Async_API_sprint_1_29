@@ -5,8 +5,6 @@ from json import JSONDecodeError
 
 from state_rw import RedisStorage, State
 
-# TODO: Ð·Ð´ÐµÑÑŒ Ð²ÑÑ‚Ð°Ð²ÑŒÑ‚Ðµ import Ð´Ð»Ñ ÑÐ²Ð¾Ð¸Ñ… Ñ„Ð°Ð¹Ð»Ð¾Ð² State Ð¸ RedisStorage
-
 
 class FakeRedis:
     def __init__(self):
@@ -53,7 +51,6 @@ def test_save_state_and_retrieve():
 
     state.set_state("key", 123)
 
-    # ÐŸÑ€Ð¸Ð½ÑƒÐ´Ð¸Ñ‚ÐµÐ»ÑŒÐ½Ð¾ ÑƒÐ´Ð°Ð»ÑÐµÐ¼ Ð¾Ð±ÑŠÐµÐºÑ‚Ñ‹
     del state
     del storage
 

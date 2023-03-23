@@ -7,18 +7,21 @@ services:
       - postgres_etl:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
-  es: 
-    image: elasticsearch:8.6.2
+
+  es:
+    image: elasticsearch:8.5.0
     container_name: api_es
     environment:
     - xpack.security.enabled=false
     - discovery.type=single-node
+    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
     depends_on:
       - postgres
     volumes:
       - es_data:/usr/share/elasticsearch/data
+
   redis:
     image: redis:latest
     container_name: api_redis
@@ -26,18 +29,17 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
   etl:
     build: ./etl
     container_name: api_etl
     environment:
     - ENV=prod
-    depends_on: 
-      postgres:
-        condition: service_started  
-      es:
-        condition: service_started
-      redis:
-        condition: service_started
+    depends_on:
+      - postgres
+      - es
+      - redis
+
   nginx:
     image: nginx:latest
     container_name: api_nginx
@@ -45,21 +47,20 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./conf.d:/etc/nginx/conf.d:ro
     ports:
-      - "80:80"
+      - "8000:80"
     depends_on:
-      fastapi:
-        condition: service_started
+      - fastapi
+
   fastapi:
-    build: ./fastapi
+    build: ./src
     container_name: api_fastapi
     environment:
-    - ENV=prod
-    - ENV-FILE=/app/.env
+      - ENV=prod
+      - ENV-FILE=/src/.env
     depends_on:
-      es:
-        condition: service_started
-      redis:
-        condition: service_started
+      - es
+      - redis
+
 volumes:
   postgres_etl:
   redis_data:

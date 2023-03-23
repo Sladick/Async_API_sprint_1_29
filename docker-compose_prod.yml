@@ -5,8 +5,9 @@ services:
     container_name: api_pgsql
     volumes:
       - postgres_etl:/var/lib/postgresql/data/
-  es: 
-    image: elasticsearch:8.6.2
+
+  es:
+    image: elasticsearch:8.5.0
     container_name: api_es
     environment:
     - xpack.security.enabled=false
@@ -15,23 +16,23 @@ services:
       - postgres
     volumes:
       - es_data:/usr/share/elasticsearch/data
+
   redis:
     image: redis:latest
     container_name: api_redis
     volumes:
       - redis_data:/data
+
   etl:
     build: ./etl
     container_name: api_etl
     environment:
     - ENV=prod
     depends_on: 
-      postgres:
-        condition: service_started  
-      es:
-        condition: service_started
-      redis:
-        condition: service_started
+      - postgres
+      - es
+      - redis
+
   nginx:
     image: nginx:latest
     container_name: api_nginx
@@ -43,17 +44,17 @@ services:
     depends_on:
       fastapi:
         condition: service_started
+
   fastapi:
-    build: ./fastapi
+    build: ./src
     container_name: api_fastapi
     environment:
     - ENV=prod
     - ENV-FILE=/app/.env
     depends_on:
-      es:
-        condition: service_started
-      redis:
-        condition: service_started
+      - es
+      - redis
+
 volumes:
   postgres_etl:
   redis_data:
